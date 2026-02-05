@@ -34,11 +34,18 @@ Route::middleware(['login'])->group(function () {
         Route::get('/delete/{id}', [EmployeeController::class, 'destroy'])->name('employee.delete');
     });
 
-    // --- 5. ORDER MANAGEMENT ---
-    Route::resource('order', OrderController::class)->except(['show']);
-    Route::get('/order/{id}/detail', [OrderController::class, 'detail'])->name('order.detail');
-    Route::post('/order/{id}/update-chart', [OrderController::class, 'updateChart']);
-    Route::post('/order/{id}/update-variants', [OrderController::class, 'updateVariants'])->name('order.updateVariants');
+    // --- 4. ORDER MANAGEMENT ---
+
+// Tambahkan ini agar URL /order/store lu tidak MethodNotAllowed
+Route::post('/order/store', [OrderController::class, 'store'])->name('order.manual_store');
+
+// Resource tetap ada untuk index, create, edit, dll
+Route::resource('order', OrderController::class)->except(['show']);
+
+// Rute detail dan update tetap di bawah
+Route::get('/order/{id}/detail', [OrderController::class, 'detail'])->name('order.detail');
+Route::post('/order/{id}/update-chart', [OrderController::class, 'updateChart']);
+Route::post('/order/{id}/update-variants', [OrderController::class, 'updateVariants'])->name('order.updateVariants');
 
     // --- 6. DIVISI PRODUKSI ---
     Route::prefix('produksi')->group(function () {
