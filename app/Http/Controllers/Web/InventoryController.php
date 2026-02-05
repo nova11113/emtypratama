@@ -6,26 +6,46 @@ use App\Http\Controllers\Controller;
 use App\Models\Material;
 use App\Models\MaterialLog;
 use App\Models\Purchasing;
-use App\Models\MaterialRequest; // Pastikan lu udah buat Model ini
+use App\Models\MaterialRequest; 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class InventoryController extends Controller
 {
-    // 1. List Stok Bahan Baku
+    // --- 1. MANAJEMEN STOK (INDEX & STORE) ---
+
     public function index() {
         return view('inventory.index', ['materials' => Material::all()]);
     }
 
-    // 2. Halaman Permintaan Bahan (Request & Approve) - FIX ERROR TADI
+    // FIX: Fungsi simpan bahan baru yang bikin error Call to undefined method
+    public function inventoryStore(Request $request) {
+        $request->validate([
+            'nama_bahan' => 'required|string|max:255',
+            'stok' => 'required|numeric|min:0',
+            'satuan' => 'required',
+        ]);
+
+        Material::create([
+            'nama_bahan'   => $request->nama_bahan,
+            'kategori'     => $request->kategori,
+            'satuan'       => $request->satuan,
+            'stok'         => $request->stok,
+            'minimal_stok' => $request->minimal_stok ?? 10,
+        ]);
+
+        return back()->with('success', 'Bahan baru berhasil ditambahkan!');
+    }
+
+    // --- 2. PERMINTAAN BAHAN (REQUEST & APPROVE) ---
+
     public function requestIndex() {
-        // Ambil permintaan yang pending di atas, lalu yang sudah disetujui
         $requests = MaterialRequest::with(['material', 'user'])->latest()->get();
         $materials = Material::where('stok', '>', 0)->get();
         
         return view('inventory.request', compact('requests', 'materials'));
     }
 
-    // 3. Simpan Permintaan Baru (Dari Produksi)
     public function requestStore(Request $r) {
         $r->validate([
             'material_id' => 'required|exists:materials,id',
@@ -34,7 +54,7 @@ class InventoryController extends Controller
         ]);
 
         MaterialRequest::create([
-            'kode_request' => 'REQ-' . date('Ymd') . '-' . strtoupper(uniqid(4)),
+            'kode_request' => 'REQ-' . date('Ymd') . '-' . strtoupper(uniqid()),
             'material_id' => $r->material_id,
             'qty_minta' => $r->qty_minta,
             'keperluan' => $r->keperluan,
@@ -45,34 +65,37 @@ class InventoryController extends Controller
         return back()->with('success', 'Permintaan bahan berhasil terkirim ke Gudang!');
     }
 
-    // 4. Setujui Permintaan & Potong Stok Otomatis
     public function requestApprove($id) {
-        $req = MaterialRequest::findOrFail($id);
-        $material = Material::findOrFail($req->material_id);
+        try {
+            DB::beginTransaction();
 
-        // Cek apakah stok di gudang cukup
-        if ($material->stok < $req->qty_minta) {
-            return back()->with('error', "Gagal! Stok {$material->nama_bahan} tidak cukup.");
+            $req = MaterialRequest::findOrFail($id);
+            $material = Material::findOrFail($req->material_id);
+
+            if ($material->stok < $req->qty_minta) {
+                return back()->with('error', "Gagal! Stok {$material->nama_bahan} tidak cukup.");
+            }
+
+            // Potong Stok & Catat Log
+            $material->decrement('stok', $req->qty_minta);
+            MaterialLog::create([
+                'material_id' => $material->id,
+                'tipe' => 'keluar',
+                'jumlah' => $req->qty_minta,
+                'keterangan' => "Disetujui REQ: {$req->kode_request} - {$req->keperluan}"
+            ]);
+
+            $req->update(['status' => 'disetujui']);
+
+            DB::commit();
+            return back()->with('success', 'Permintaan disetujui & Stok otomatis terpotong!');
+        } catch (\Exception $e) {
+            DB::rollback();
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
-
-        // A. Potong Stok Material
-        $material->decrement('stok', $req->qty_minta);
-
-        // B. Catat di MaterialLog (Biar history sinkron)
-        MaterialLog::create([
-            'material_id' => $material->id,
-            'tipe' => 'keluar',
-            'jumlah' => $req->qty_minta,
-            'keterangan' => "Disetujui REQ: {$req->kode_request} - {$req->keperluan}"
-        ]);
-
-        // C. Update Status Request
-        $req->update(['status' => 'disetujui']);
-
-        return back()->with('success', 'Permintaan disetujui & Stok otomatis terpotong!');
     }
 
-    // --- FUNGSI BAWAAN LU YANG LAIN (TETAP SAMA) ---
+    // --- 3. PENGADAAN & HISTORY ---
 
     public function procurement() {
         return view('procurement.index', [
@@ -110,6 +133,7 @@ class InventoryController extends Controller
         $material = Material::findOrFail($id);
         $stok_lama = $material->stok;
         $selisih = $request->stok_baru - $stok_lama;
+        
         $material->stok = $request->stok_baru;
         $material->save();
 
