@@ -111,6 +111,7 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Inisialisasi modal dengan benar
         window.inputModal = new bootstrap.Modal(document.getElementById('inputModal'));
         window.printModal = new bootstrap.Modal(document.getElementById('printModal'));
     });
@@ -140,12 +141,14 @@
     document.getElementById('formPengiriman').addEventListener('submit', function(e) {
         e.preventDefault();
         const btn = document.getElementById('btnSimpan');
+        
+        // Disable button biar gak double klik
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Menyimpan...';
 
         const formData = new FormData(this);
 
-        // Gunakan named route agar sinkron dengan web.php
+        // --- FIX MIXED CONTENT: Gunakan helper route() ---
         fetch("{{ route('order.pengirimanStore') }}", {
             method: "POST",
             body: formData,
@@ -154,35 +157,51 @@
                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            // Cek jika server ngasih error (bukan JSON)
+            if (!response.ok) {
+                return response.text().then(text => { throw new Error(text) });
+            }
+            return response.json();
+        })
         .then(data => {
             if(data.success && data.shipment_id) {
                 window.inputModal.hide();
                 
-                // --- PERBAIKAN URL PRATINJAU AGAR TIDAK 404 ---
+                // --- FIX URL IFRAME AGAR TETAP HTTPS ---
                 let printUrl = "{{ route('order.suratJalan', ':id') }}";
                 printUrl = printUrl.replace(':id', data.shipment_id);
+                
+                // Paksa HTTPS jika halaman utama sedang pakai HTTPS (Railway)
+                if (window.location.protocol === 'https:') {
+                    printUrl = printUrl.replace('http:', 'https:');
+                }
                 
                 document.getElementById('printFrame').src = printUrl;
                 window.printModal.show();
             } else {
                 alert('Gagal: ' + (data.message || 'Cek stok atau inputan lu bro.'));
-                btn.disabled = false;
-                btn.innerText = 'Simpan & Cetak Surat Jalan';
+                resetButton(btn);
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            alert('Sistem Error. Pastikan Controller lu balikin JSON.');
-            btn.disabled = false;
-            btn.innerText = 'Simpan & Cetak Surat Jalan';
+            console.error('Error detail:', error);
+            alert('Sistem Error atau Masalah Koneksi (Mixed Content). Cek Console F12.');
+            resetButton(btn);
         });
     });
 
+    function resetButton(btn) {
+        btn.disabled = false;
+        btn.innerText = 'Simpan & Cetak Surat Jalan';
+    }
+
     function executePrint() {
         const frame = document.getElementById('printFrame');
-        frame.contentWindow.focus();
-        frame.contentWindow.print();
+        if (frame.contentWindow) {
+            frame.contentWindow.focus();
+            frame.contentWindow.print();
+        }
     }
 </script>
 @endsection
