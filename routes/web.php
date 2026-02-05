@@ -20,37 +20,41 @@ Route::get('/logout', [AuthWebController::class, 'logout'])->name('logout');
 // --- 3. SEMUA RUTE WAJIB LOGIN ---
 Route::middleware(['login'])->group(function () {
     
-    // DASHBOARD
+    // --- DASHBOARD ---
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::post('/internal-request', [DashboardController::class, 'storeRequest'])->name('internal.request');
-    Route::get('/internal-request/history', [DashboardController::class, 'riwayatRequest'])->name('internal.history');
 
-    // --- 4. ORDER MANAGEMENT ---
-    // Resource ini sudah otomatis bikin rute: index, create, store, edit, update, destroy
+    // --- 4. EMPLOYEE MANAGEMENT (KARYAWAN) ---
+    // Dipindah ke atas agar tidak tertabrak rute Order/Produksi
+    Route::prefix('karyawan')->group(function () {
+        Route::get('/', [EmployeeController::class, 'index'])->name('employee.index');
+        Route::get('/create', [EmployeeController::class, 'create'])->name('employee.create');
+        Route::post('/store', [EmployeeController::class, 'store'])->name('employee.store');
+        Route::get('/edit/{id}', [EmployeeController::class, 'edit'])->name('employee.edit');
+        Route::post('/update/{id}', [EmployeeController::class, 'update'])->name('employee.update');
+        Route::get('/delete/{id}', [EmployeeController::class, 'destroy'])->name('employee.delete');
+    });
+
+    // --- 5. ORDER MANAGEMENT ---
     Route::resource('order', OrderController::class)->except(['show']);
-    
-    // Rute tambahan yang emang nggak ada di resource bawaan
     Route::get('/order/{id}/detail', [OrderController::class, 'detail'])->name('order.detail');
     Route::post('/order/{id}/update-chart', [OrderController::class, 'updateChart']);
     Route::post('/order/{id}/update-variants', [OrderController::class, 'updateVariants'])->name('order.updateVariants');
 
-    // --- DIVISI PRODUKSI ---
+    // --- 6. DIVISI PRODUKSI ---
     Route::prefix('produksi')->group(function () {
         Route::controller(ProductionController::class)->group(function () {
             Route::get('/cutting', 'cutting')->name('cutting.index');
             Route::get('/sewing', 'sewing')->name('sewing.index');
             Route::get('/finishing', 'finishing')->name('finishing.index');
             Route::get('/qc', 'qc')->name('qc.index');
-            
             Route::get('/report', 'report')->name('order.report');
             Route::get('/print-size/{id}', 'printSize')->name('order.print_size');
-
             Route::post('/update-progress', 'updateProgress')->name('production.update');
             Route::post('/bulk-update', 'updateProgress')->name('order.bulk');
         });
     });
 
-    // GUDANG & INVENTORY
+    // --- 7. GUDANG & INVENTORY ---
     Route::prefix('inventory')->group(function () {
         Route::get('/', [InventoryController::class, 'index'])->name('inventory.index');
         Route::post('/store', [InventoryController::class, 'inventoryStore'])->name('inventory.store');
@@ -68,7 +72,7 @@ Route::middleware(['login'])->group(function () {
         Route::post('/terima/{id}', [InventoryController::class, 'terimaBahan'])->name('procurement.terima');
     });
 
-    // --- 5. GUDANG & SHIPMENT (PENGIRIMAN) ---
+    // --- 8. GUDANG & SHIPMENT (PENGIRIMAN) ---
     Route::controller(ShipmentController::class)->group(function () {
         Route::get('/gudang', 'index')->name('gudang.index');
         Route::get('/shipment-history', 'shipmentHistory')->name('order.shipmentHistory');
@@ -78,14 +82,8 @@ Route::middleware(['login'])->group(function () {
         Route::get('/surat-jalan/{id}', 'print')->name('order.suratJalan');
     });
 
-// --- 6. EMPLOYEE MANAGEMENT (KARYAWAN) ---
-    Route::prefix('karyawan')->group(function () {
-        Route::get('/', [EmployeeController::class, 'index'])->name('employee.index');
-        Route::get('/create', [EmployeeController::class, 'create'])->name('employee.create');
-        Route::post('/store', [EmployeeController::class, 'store'])->name('employee.store');
-        Route::get('/edit/{id}', [EmployeeController::class, 'edit'])->name('employee.edit');
-        Route::post('/update/{id}', [EmployeeController::class, 'update'])->name('employee.update');
-        Route::get('/delete/{id}', [EmployeeController::class, 'destroy'])->name('employee.delete');
-    });
+    // --- 9. INTERNAL REQUEST ---
+    Route::post('/internal-request', [DashboardController::class, 'storeRequest'])->name('internal.request');
+    Route::get('/internal-request/history', [DashboardController::class, 'riwayatRequest'])->name('internal.history');
 
-}); // <--- INI PE
+}); // <--- PENUTUP MIDDLEWARE LOGIN
