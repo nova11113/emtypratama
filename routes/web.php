@@ -78,13 +78,14 @@ Route::middleware(['login'])->group(function () {
         Route::get('/surat-jalan/{id}', 'print')->name('order.suratJalan');
     });
 
-    // KARYAWAN
-    Route::resource('karyawan', EmployeeController::class)->names([
-        'index' => 'employee.index',
-        'create' => 'employee.create',
-        'store' => 'employee.store',
-        'edit' => 'employee.edit',
-        'update' => 'employee.update',
-        'destroy' => 'employee.destroy',
-    ]);
-});
+// --- 6. EMPLOYEE MANAGEMENT (KARYAWAN) ---
+    Route::prefix('karyawan')->group(function () {
+        Route::get('/', [EmployeeController::class, 'index'])->name('employee.index');
+        Route::get('/create', [EmployeeController::class, 'create'])->name('employee.create');
+        Route::post('/store', [EmployeeController::class, 'store'])->name('employee.store');
+        Route::get('/edit/{id}', [EmployeeController::class, 'edit'])->name('employee.edit');
+        Route::post('/update/{id}', [EmployeeController::class, 'update'])->name('employee.update');
+        Route::get('/delete/{id}', [EmployeeController::class, 'destroy'])->name('employee.delete');
+    });
+
+}); // <--- INI PE
