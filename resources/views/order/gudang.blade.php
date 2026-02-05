@@ -111,7 +111,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Inisialisasi modal dengan benar
         window.inputModal = new bootstrap.Modal(document.getElementById('inputModal'));
         window.printModal = new bootstrap.Modal(document.getElementById('printModal'));
     });
@@ -141,14 +140,12 @@
     document.getElementById('formPengiriman').addEventListener('submit', function(e) {
         e.preventDefault();
         const btn = document.getElementById('btnSimpan');
-        
-        // Disable button biar gak double klik
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Menyimpan...';
 
         const formData = new FormData(this);
 
-        // --- FIX MIXED CONTENT: Gunakan helper route() ---
+        // FIX: Menggunakan named route agar otomatis deteksi HTTPS di Railway
         fetch("{{ route('order.pengirimanStore') }}", {
             method: "POST",
             body: formData,
@@ -158,7 +155,6 @@
             }
         })
         .then(response => {
-            // Cek jika server ngasih error (bukan JSON)
             if (!response.ok) {
                 return response.text().then(text => { throw new Error(text) });
             }
@@ -168,11 +164,11 @@
             if(data.success && data.shipment_id) {
                 window.inputModal.hide();
                 
-                // --- FIX URL IFRAME AGAR TETAP HTTPS ---
+                // FIX: Generate URL secara dinamis
                 let printUrl = "{{ route('order.suratJalan', ':id') }}";
                 printUrl = printUrl.replace(':id', data.shipment_id);
                 
-                // Paksa HTTPS jika halaman utama sedang pakai HTTPS (Railway)
+                // Force HTTPS jika sedang di server produksi
                 if (window.location.protocol === 'https:') {
                     printUrl = printUrl.replace('http:', 'https:');
                 }
@@ -186,7 +182,7 @@
         })
         .catch(error => {
             console.error('Error detail:', error);
-            alert('Sistem Error atau Masalah Koneksi (Mixed Content). Cek Console F12.');
+            alert('Sistem Error: Kemungkinan Mixed Content diblokir atau Controller Crash.');
             resetButton(btn);
         });
     });
