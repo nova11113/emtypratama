@@ -2,14 +2,15 @@
 
 @section('content')
 <div class="container-fluid py-4">
+    {{-- HEADER --}}
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="fw-bold mb-0 text-primary">📦 Manajemen Stok Bahan Baku</h4>
-        <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalTambahBahan">
+        <button class="btn btn-primary shadow-sm px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#modalTambahBahan">
             <i class="fas fa-plus-circle me-1"></i> Tambah Bahan Baru
         </button>
     </div>
 
-    {{-- FITUR SEARCH (BARU) --}}
+    {{-- FITUR SEARCH --}}
     <div class="row mb-3">
         <div class="col-md-4">
             <div class="input-group shadow-sm">
@@ -23,12 +24,13 @@
 
     {{-- Notifikasi --}}
     @if(session('success'))
-        <div class="alert alert-success border-0 shadow-sm">{{ session('success') }}</div>
-    @endif
-    @if(session('error'))
-        <div class="alert alert-danger border-0 shadow-sm">{{ session('error') }}</div>
+        <div class="alert alert-success border-0 shadow-sm alert-dismissible fade show">
+            {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
     @endif
 
+    {{-- TABEL DATA --}}
     <div class="card shadow border-0" style="border-radius: 15px;">
         <div class="card-body">
             <div class="table-responsive">
@@ -60,23 +62,23 @@
                             </td>
                             <td class="text-center pe-3">
                                 <div class="btn-group">
-                                    <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#modalKurangi{{ $m->id }}">
-                                        <i class="fas fa-minus-circle"></i> Gunakan
+                                    {{-- Tombol Gunakan (Trigger Modal Kurangi) --}}
+                                    <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalKurangi{{ $m->id }}">
+                                        <i class="fas fa-minus-circle"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalUpdate{{ $m->id }}">
-                                        <i class="fas fa-edit"></i> Edit
+                                    {{-- Tombol Edit --}}
+                                    <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#modalUpdate{{ $m->id }}">
+                                        <i class="fas fa-edit"></i>
                                     </button>
+                                    {{-- Tombol History --}}
                                     <a href="{{ route('inventory.history', $m->id) }}" class="btn btn-sm btn-outline-primary">
                                         <i class="fas fa-history"></i>
                                     </a>
                                 </div>
                             </td>
                         </tr>
-
-                        {{-- MODAL KURANGI & MODAL UPDATE TETAP DI SINI SEPERTI KODE LU SEBELUMNYA --}}
-                        
                         @empty
-                        <tr><td colspan="5" class="text-center py-5">Belum ada data bahan baku.</td></tr>
+                        <tr><td colspan="5" class="text-center py-5 text-muted italic">Belum ada data bahan baku.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -85,18 +87,69 @@
     </div>
 </div>
 
-{{-- MODAL TAMBAH BAHAN BARU --}}
+{{-- MODAL TAMBAH BAHAN BARU (INI YANG TADI HILANG) --}}
+<div class="modal fade" id="modalTambahBahan" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 15px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold text-primary"><i class="fas fa-box-open me-2"></i>Tambah Bahan Baru</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ route('inventory.store') }}" method="POST">
+                @csrf
+                <div class="modal-body py-4">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Nama Bahan</label>
+                            <input type="text" name="nama_bahan" class="form-control bg-light border-0" placeholder="Contoh: Kain Combed 30s Black" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Kategori</label>
+                            <select name="kategori" class="form-select bg-light border-0">
+                                <option value="Kain">Kain</option>
+                                <option value="Aksesoris">Aksesoris</option>
+                                <option value="Benang">Benang</option>
+                                <option value="Lainnya">Lainnya</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Satuan</label>
+                            <select name="satuan" class="form-select bg-light border-0">
+                                <option value="Yard">Yard</option>
+                                <option value="Meter">Meter</option>
+                                <option value="Kg">Kg</option>
+                                <option value="Roll">Roll</option>
+                                <option value="Pcs">Pcs</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Stok Awal</label>
+                            <input type="number" step="0.01" name="stok" class="form-control bg-light border-0" value="0" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Minimal Stok</label>
+                            <input type="number" step="0.01" name="minimal_stok" class="form-control bg-light border-0" value="10" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary fw-bold px-4">Simpan Bahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
-{{-- SCRIPT SEARCH (BARU) --}}
+{{-- SCRIPT SEARCH --}}
 <script>
     document.getElementById('inventorySearch').addEventListener('keyup', function() {
         let filter = this.value.toLowerCase();
         let rows = document.querySelectorAll('#inventoryTable tbody tr');
 
         rows.forEach(row => {
-            // Kita ambil teks dari kolom nama bahan dan kategori
-            let name = row.querySelector('.material-name').textContent.toLowerCase();
-            let category = row.querySelector('.material-category').textContent.toLowerCase();
+            let name = row.querySelector('.material-name')?.textContent.toLowerCase() || "";
+            let category = row.querySelector('.material-category')?.textContent.toLowerCase() || "";
             
             if (name.includes(filter) || category.includes(filter)) {
                 row.style.display = '';
