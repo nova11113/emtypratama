@@ -7,6 +7,14 @@
         <span class="badge bg-success shadow-sm px-3 py-2">Stok Real-Time</span>
     </div>
 
+    {{-- Pesan Sukses --}}
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert" style="border-radius: 10px;">
+            <strong>✅ Berhasil!</strong> {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
     <div class="card border-0 shadow-sm" style="border-radius: 15px;">
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -58,7 +66,7 @@
     </div>
 </div>
 
-{{-- MODAL INPUT PENGIRIMAN --}}
+{{-- MODAL INPUT PENGIRIMAN (Submit Biasa) --}}
 <div class="modal fade" id="inputModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content border-0 shadow-lg">
@@ -66,7 +74,8 @@
                 <h5 class="modal-title fw-bold">Input Pengiriman: <span id="modal_kode_order"></span></h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form id="formPengiriman">
+            {{-- PERUBAHAN DISINI: Pakai form action biasa --}}
+            <form action="{{ route('order.pengirimanStore') }}" method="POST">
                 @csrf
                 <input type="hidden" name="order_id" id="modal_order_id">
                 <div class="modal-body">
@@ -84,27 +93,9 @@
                 </div>
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-secondary fw-bold" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary fw-bold" id="btnSimpan">Simpan & Cetak Surat Jalan</button>
+                    <button type="submit" class="btn btn-primary fw-bold">Simpan Pengiriman</button>
                 </div>
             </form>
-        </div>
-    </div>
-</div>
-
-{{-- MODAL PRINT SURAT JALAN --}}
-<div class="modal fade" id="printModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-dark text-white text-center">
-                <h5 class="modal-title w-100 fw-bold">Preview Surat Jalan</h5>
-            </div>
-            <div class="modal-body p-0 text-center">
-                <iframe id="printFrame" src="" style="width: 100%; height: 70vh; border: none;"></iframe>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary fw-bold px-4" onclick="executePrint()">🖨️ Cetak Sekarang</button>
-                <button type="button" class="btn btn-secondary fw-bold" onclick="location.reload()">Selesai & Update Gudang</button>
-            </div>
         </div>
     </div>
 </div>
@@ -112,7 +103,6 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         window.inputModal = new bootstrap.Modal(document.getElementById('inputModal'));
-        window.printModal = new bootstrap.Modal(document.getElementById('printModal'));
     });
 
     function openInputModal(id, kode, s, m, l, xl) {
@@ -135,69 +125,6 @@
         }
         document.getElementById('input_rows').innerHTML = rows;
         window.inputModal.show();
-    }
-
-    document.getElementById('formPengiriman').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const btn = document.getElementById('btnSimpan');
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Menyimpan...';
-
-        const formData = new FormData(this);
-
-        // FIX: Menggunakan named route agar otomatis deteksi HTTPS di Railway
-        fetch("{{ route('order.pengirimanStore') }}", {
-            method: "POST",
-            body: formData,
-            headers: { 
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => { throw new Error(text) });
-            }
-            return response.json();
-        })
-        .then(data => {
-            if(data.success && data.shipment_id) {
-                window.inputModal.hide();
-                
-                // FIX: Generate URL secara dinamis
-                let printUrl = "{{ route('order.suratJalan', ':id') }}";
-                printUrl = printUrl.replace(':id', data.shipment_id);
-                
-                // Force HTTPS jika sedang di server produksi
-                if (window.location.protocol === 'https:') {
-                    printUrl = printUrl.replace('http:', 'https:');
-                }
-                
-                document.getElementById('printFrame').src = printUrl;
-                window.printModal.show();
-            } else {
-                alert('Gagal: ' + (data.message || 'Cek stok atau inputan lu bro.'));
-                resetButton(btn);
-            }
-        })
-        .catch(error => {
-            console.error('Error detail:', error);
-            alert('Sistem Error: Kemungkinan Mixed Content diblokir atau Controller Crash.');
-            resetButton(btn);
-        });
-    });
-
-    function resetButton(btn) {
-        btn.disabled = false;
-        btn.innerText = 'Simpan & Cetak Surat Jalan';
-    }
-
-    function executePrint() {
-        const frame = document.getElementById('printFrame');
-        if (frame.contentWindow) {
-            frame.contentWindow.focus();
-            frame.contentWindow.print();
-        }
     }
 </script>
 @endsection
